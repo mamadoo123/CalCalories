@@ -26,13 +26,29 @@ const ItemController = (function(){
         },
         logData: function(){
             return data;
+        },
+        addItem: function(item){
+            item.calories = parseInt(item.calories)
+            if(data.items.length > 0){
+            item.id = data.items.length;
+            }else{
+            item.id = 0;
+            }
+            // Create A New Item Object Using the Constructor
+            newItem = new Item(item.id, item.name, item.calories);
+            // Push the newly created item into our data 
+            data.items.push(newItem);
+            return newItem;
         }
     }
 })()
 // UI Controller: Populate the data Into The DOM elements
 const UIController = (function(){
     const DOMElements = {
-        itemList:'item-list'
+        itemList:'item-list',
+        addButton:'.add-btn',
+        itemName:'#item-name',
+        itemCalories:'#item-calories'
     }
     return{
         populate: function(items){
@@ -46,12 +62,35 @@ const UIController = (function(){
             </li>`
             });
             document.getElementById(DOMElements.itemList).innerHTML = html;
+        },
+        getDOM: function(){
+            return DOMElements;
+        },
+        getInputs: function(){
+            return{
+                name: document.querySelector(DOMElements.itemName).value,
+                calories: document.querySelector(DOMElements.itemCalories).value
+            }
         }
     }
 })()
 // App Controller: To Initialze The App Once Loaded Or Reloaded
 const AppController = (function(ItemController, UIController){
-
+// create a fn that loads all eventListeners
+const loadEventListeners = function(){
+    // Add Button
+    const addBtn = document.querySelector(UIController.getDOM().addButton);
+    addBtn.addEventListener('click', addItem);
+    function addItem(e){
+        const inputs = UIController.getInputs();
+        if(inputs.name !== ''&& inputs.calories !== ''){
+            ItemController.addItem(inputs);
+        }else{
+            alert('Pleae Complete all Fields')
+        }
+        e.preventDefault()
+    }
+}
    return{
        init: function(){
            // Fetch the Data From Item Controller
@@ -59,6 +98,9 @@ const AppController = (function(ItemController, UIController){
 
            // Populate These Items into the DOM Using UI Controller
            UIController.populate(items);
+
+           // Load All Event Listeners
+           loadEventListeners();
        }
    }
 })(ItemController, UIController);
