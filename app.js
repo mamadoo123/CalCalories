@@ -11,11 +11,7 @@ const ItemController = (function(){
     }
     // Data Structure | State 
     const data = {
-        items:[
-            {id:0, name:'Steak Dinner', calories: 1200},
-            {id:1, name:'French Fries', calories: 1700},
-            {id:2, name:'Fesh', calories: 600}
-        ],
+        items:[],
         currentItem:null,
         calories:0
     }
@@ -23,6 +19,16 @@ const ItemController = (function(){
     return{
         getItems: function(){
             return data.items;
+        },
+        getItem: function(id){
+            const item = data.items.find(item => item.id === id)
+            return item
+        },
+        serCurrentItem: function(item){
+            data.currentItem = item;
+        },
+        getCurrentItem: function(){
+            return data.currentItem;
         },
         logData: function(){
             return data;
@@ -40,6 +46,26 @@ const ItemController = (function(){
             data.items.push(newItem);
             return newItem;
         },
+        updateItem: function(name, calories){
+            let found = null;
+            data.items.forEach(function(item){
+                if(item.id === data.currentItem.id){
+                    item.name = name;
+                    item.calories = parseInt(calories);
+                    found = item;
+                }
+            });
+            return found;
+        },
+        deleteItem: function(item){
+            const itemDelete = data.items.find(itm => itm.id === item.id);
+            data.items.pop(itemDelete);
+            data.currentItem = null;
+        },
+        deleteAllItems: function(){
+            data.items = [];
+            data.currentItem = null;
+        },
         getTotalCalories: function(){
             let total =0;
             data.items.forEach(item => total += item.calories);
@@ -53,9 +79,14 @@ const UIController = (function(){
     const DOMElements = {
         itemList:'#item-list',
         addButton:'.add-btn',
+        backButton:'.back-btn',
+        deleteButton:'.delete-btn',
+        clearButton:'.clear-btn',
+        updateButton:'.update-btn',
         itemName:'#item-name',
         itemCalories:'#item-calories',
-        totalCalories:'.total-calories'
+        totalCalories:'.total-calories',
+        allLis:'#item-list li'
     }
     return{
         populate: function(items){
@@ -94,6 +125,60 @@ const UIController = (function(){
         },
         populateCalories: function(calories){
             document.querySelector(DOMElements.totalCalories).textContent = `${calories} Calory`
+        },
+        setInitialState: function(){
+            UIController.clearInputs();
+            document.querySelector(DOMElements.addButton).style.display = 'inline';
+            document.querySelector(DOMElements.updateButton).style.display = 'none';
+            document.querySelector(DOMElements.deleteButton).style.display = 'none';
+            document.querySelector(DOMElements.backButton).style.display = 'none';
+        },
+        setEditState: function(){
+            // Set the style display for each button in the Edit state
+            document.querySelector(DOMElements.addButton).style.display = 'none';
+            document.querySelector(DOMElements.updateButton).style.display = 'inline';
+            document.querySelector(DOMElements.deleteButton).style.display = 'inline';
+            document.querySelector(DOMElements.backButton).style.display = 'inline';
+            // Set the values of Inputs according the current item of the data object
+            const currentItem = ItemController.getCurrentItem();
+            document.querySelector(DOMElements.itemName).value = currentItem.name;
+            document.querySelector(DOMElements.itemCalories).value = currentItem.calories;
+        },
+        updateListItem: function(item){
+            let lis = document.querySelectorAll(DOMElements.allLis); // returns a Node List
+            // convert the Node List into Array
+            lis = Array.from(lis);
+            // looping through the li to get the li to be updated
+            lis.forEach(function(li){
+                const itemId = li.getAttribute('id');
+                if(itemId === `item-${item.id}`){
+                    document.querySelector(`#${itemId}`).innerHTML =`<strong>${item.name}:
+                    </strong><em>${item.calories} Calories</em>
+                    <a href="#" class="secondary-content">
+                    <i class="edit-item fa fa-pencil"></i></a>`
+                }
+            });
+
+        },
+        deleteListItem: function(item){
+            let lis = document.querySelectorAll(DOMElements.allLis); // returns a Node List
+            // convert the Node List into Array
+            lis = Array.from(lis);
+            // looping through the li to get the li to be updated
+            lis.forEach(function(li){
+                const itemId = li.getAttribute('id');
+                if(itemId === `item-${item.id}`){
+                    document.querySelector(`#${itemId}`).remove();
+                }
+            });
+        },
+        deleteAllItems: function(){
+            const lis = document.querySelectorAll(DOMElements.allLis);
+            const lisArray = Array.from(lis);
+            lisArray.forEach(li =>{
+                const liId = li.getAttribute('id');
+                document.querySelector(`#${liId}`).remove();
+            })
         }
     }
 })()
@@ -104,6 +189,25 @@ const loadEventListeners = function(){
     // Add Button
     const addBtn = document.querySelector(UIController.getDOM().addButton);
     addBtn.addEventListener('click', addItem);
+    
+    // Edit Button
+    document.querySelector(UIController.getDOM().itemList).addEventListener('click', edit);
+    
+    // Update Button
+    document.querySelector(UIController.getDOM().updateButton).addEventListener('click', update)
+    
+    // Back Button
+    document.querySelector(UIController.getDOM().backButton).addEventListener('click', backHandler)
+    
+    // Delete Button 
+    document.querySelector(UIController.getDOM().deleteButton).addEventListener('click', deleteHandler)
+    
+    // Clear Button
+    document.querySelector(UIController.getDOM().clearButton).addEventListener('click', clearAll);
+    // prevent submit on Enter
+    document.addEventListener('keypress', preventEnterKey);
+
+    // Event Handlers Functions
     function addItem(e){
         const inputs = UIController.getInputs();
         if(inputs.name !== ''&& inputs.calories !== ''){
@@ -120,9 +224,77 @@ const loadEventListeners = function(){
         UIController.clearInputs();
         e.preventDefault()
     }
+    
+    function edit(e){
+        if(e.target.parentElement.classList.contains('secondary-content')){
+            // Extract the Item ID from the id of Target List Item 
+            const itemId = parseInt(e.target.parentElement.parentElement.id.substring(5,6));
+            // Get the spicified Item from item controller
+            const item = ItemController.getItem(itemId);
+            // Set the Current Item Property of the Item Controller
+            ItemController.serCurrentItem(item);
+            // Set the Edit State
+            UIController.setEditState();
+        }
+    }
+
+    function update(e){
+        // get the input new values
+        const itemInputs = UIController.getInputs();
+        // update the current item property of the data oject with the new values
+        const updatedItem = ItemController.updateItem(itemInputs.name, itemInputs.calories);
+        // Use the UI to update or re-render the list item
+        UIController.updateListItem(updatedItem);
+        // Get The Total Calories
+        const totalCalories = ItemController.getTotalCalories();
+        // dispaly the total calories
+        UIController.populateCalories(totalCalories);
+        // Clear All Input Fields
+        UIController.setInitialState();
+
+        e.preventDefault();
+    }
+
+    function backHandler(e){
+        UIController.setInitialState();
+        e.preventDefault()
+    }
+
+    function deleteHandler(e){
+        const currentItem = ItemController.getCurrentItem();
+        ItemController.deleteItem(currentItem);
+        UIController.deleteListItem(currentItem);
+        const totalCalories = ItemController.getTotalCalories();
+        // dispaly the total calories
+        UIController.populateCalories(totalCalories);
+        // Clear All Input Fields
+        UIController.setInitialState();
+
+        e.preventDefault()
+    }
+
+    function clearAll(e){
+        ItemController.deleteAllItems();
+        UIController.deleteAllItems();
+        const totalCalories = 0;
+        // dispaly the total calories
+        UIController.populateCalories(totalCalories);
+        // Clear All Input Fields
+        UIController.setInitialState();
+        e.preventDefault()
+    }
+
+    function preventEnterKey(e){
+        if(e.keyCode === 13 || e.which === 13){
+            e.preventDefault;
+            return false
+        }
+    }
 }
    return{
        init: function(){
+           // Set Initial State of all buttons
+           UIController.setInitialState(); 
            // Fetch the Data From Item Controller
            const items = ItemController.getItems();
 
