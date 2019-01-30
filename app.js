@@ -1,4 +1,52 @@
 // Storage Controller
+const StorageController = (function(){
+    return{
+        addToLS: function(item){
+            let items = [];
+            // check if there are items in the local storage
+            if(localStorage.getItem('items') !== null){
+                // get the data from LS
+                items = JSON.parse(localStorage.getItem('items'));
+                items.push(item);
+                // store the new data in LS
+                localStorage.setItem('items', JSON.stringify(items));
+            }else{
+                items.push(item);
+                localStorage.setItem('items', JSON.stringify(items));
+            }
+        },
+        removeItemFromLS: function(item){
+            items = JSON.parse(localStorage.getItem('items'));
+            items.forEach((element, index) => {
+                if(element.id === item.id){
+                    items.splice(index, 1);
+                }
+            });
+            localStorage.setItem('items', JSON.stringify(items))
+        },
+        getItemsFromLS: function(){
+            let items = [];
+            if(localStorage.getItem('items') !== null){
+                items = JSON.parse(localStorage.getItem('items'));
+            }
+            return items;
+        },
+        updateItemInLS: function(item){
+            items = JSON.parse(localStorage.getItem('items'));
+            items.forEach((element, index) => {
+                if(element.id === item.id){
+                    items.splice(index, 1, item);
+                }
+            });
+            localStorage.setItem('items', JSON.stringify(items))
+        },
+        clearAllItemsFromLs: function(){
+            if(localStorage.getItem('items') !== null){
+                localStorage.clear();
+            }
+        }
+    }
+})();
 
 // Item Controller: Holds the data structure of items
 const ItemController = (function(){
@@ -11,7 +59,7 @@ const ItemController = (function(){
     }
     // Data Structure | State 
     const data = {
-        items:[],
+        items:StorageController.getItemsFromLS(),
         currentItem:null,
         calories:0
     }
@@ -24,7 +72,7 @@ const ItemController = (function(){
             const item = data.items.find(item => item.id === id)
             return item
         },
-        serCurrentItem: function(item){
+        setCurrentItem: function(item){
             data.currentItem = item;
         },
         getCurrentItem: function(){
@@ -183,7 +231,7 @@ const UIController = (function(){
     }
 })()
 // App Controller: To Initialze The App Once Loaded Or Reloaded
-const AppController = (function(ItemController, UIController){
+const AppController = (function(ItemController, UIController, StorageController){
 // create a fn that loads all eventListeners
 const loadEventListeners = function(){
     // Add Button
@@ -212,6 +260,7 @@ const loadEventListeners = function(){
         const inputs = UIController.getInputs();
         if(inputs.name !== ''&& inputs.calories !== ''){
             const newItem = ItemController.addItem(inputs);
+            StorageController.addToLS(newItem);
             UIController.addNewItem(newItem)
         }else{
             alert('Pleae Complete all Fields')
@@ -232,7 +281,7 @@ const loadEventListeners = function(){
             // Get the spicified Item from item controller
             const item = ItemController.getItem(itemId);
             // Set the Current Item Property of the Item Controller
-            ItemController.serCurrentItem(item);
+            ItemController.setCurrentItem(item);
             // Set the Edit State
             UIController.setEditState();
         }
@@ -243,6 +292,8 @@ const loadEventListeners = function(){
         const itemInputs = UIController.getInputs();
         // update the current item property of the data oject with the new values
         const updatedItem = ItemController.updateItem(itemInputs.name, itemInputs.calories);
+        // Store the updated data in LS
+        StorageController.updateItemInLS(updatedItem);
         // Use the UI to update or re-render the list item
         UIController.updateListItem(updatedItem);
         // Get The Total Calories
@@ -262,6 +313,7 @@ const loadEventListeners = function(){
 
     function deleteHandler(e){
         const currentItem = ItemController.getCurrentItem();
+        StorageController.removeItemFromLS(currentItem);
         ItemController.deleteItem(currentItem);
         UIController.deleteListItem(currentItem);
         const totalCalories = ItemController.getTotalCalories();
@@ -276,6 +328,7 @@ const loadEventListeners = function(){
     function clearAll(e){
         ItemController.deleteAllItems();
         UIController.deleteAllItems();
+        StorageController.clearAllItemsFromLs();
         const totalCalories = 0;
         // dispaly the total calories
         UIController.populateCalories(totalCalories);
@@ -297,7 +350,6 @@ const loadEventListeners = function(){
            UIController.setInitialState(); 
            // Fetch the Data From Item Controller
            const items = ItemController.getItems();
-
            // Populate These Items into the DOM Using UI Controller
            UIController.populate(items);
              // Get The Total Calories
@@ -308,7 +360,7 @@ const loadEventListeners = function(){
            loadEventListeners();
        }
    }
-})(ItemController, UIController);
+})(ItemController, UIController, StorageController);
 
 // Init App 
 AppController.init();
